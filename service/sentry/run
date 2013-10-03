@@ -1,0 +1,29 @@
+#!/bin/sh
+set -e
+
+until chpst -u postgres psql -c 'SELECT 1' > /dev/null 2>&1 ; do
+    sleep 1
+done
+
+sentry () {
+    chpst -u sentry /opt/sentry/bin/sentry --config=sentry.conf.py "${@}"
+}
+
+chpst -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='sentry'" | grep -q 1 || \
+    chpst -u postgres createuser --no-superuser --no-createdb --no-createrole sentry
+
+chpst -u postgres psql -tAl | grep '^sentry|' || \
+    chpst -u postgres createdb -T template0 -E UTF8 -O sentry sentry
+
+sentry upgrade --noinput
+
+if [ ! -f PASSWORD ] ; then
+    openssl rand -hex 16 > PASSWORD
+    sentry shell <<EOF > /dev/null
+from django.contrib.auth.models import User
+User.objects.create_superuser('root', 'root@example.com', '`cat PASSWORD`')
+EOF
+    sentry repair --owner=root
+fi
+
+exec chpst -u sentry /opt/sentry/bin/sentry --config=sentry.conf.py start

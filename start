@@ -1,0 +1,10 @@
+#!/bin/sh
+set -e -x
+
+test -d /service || mkdir /service
+
+for service in /service.tmpl/* ; do
+    test -d /service/`basename $service` || cp -a $service /service
+done
+
+exec /usr/bin/runsvdir /service

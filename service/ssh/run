@@ -1,0 +1,10 @@
+#!/bin/sh
+set -e
+exec 2>&1
+if [ ! -f authorized_keys ] ; then
+    ssh-keygen -t ecdsa -b 521 -C root@sentry -N '' -f id_ecdsa
+    mv id_ecdsa.pub authorized_keys
+fi
+mkdir -pv /var/run/sshd
+install -o root -g root -m 0600 authorized_keys /etc/ssh/authorized_keys
+exec /usr/sbin/sshd -D -e -f sshd_config
