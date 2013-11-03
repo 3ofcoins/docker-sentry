@@ -86,9 +86,7 @@ DATABASES = {
 # You MUST configure the absolute URI root for Sentry:
 SENTRY_URL_PREFIX = os.environ.get('SENTRY_URL_PREFIX', 'http://sentry.example.com')  # No trailing slash!
 
-# If you're using a reverse proxy, you should enable the X-Forwarded-Proto
-# header, and uncomment the following setting
-# SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 SENTRY_WEB_HOST = '0.0.0.0'
 SENTRY_WEB_PORT = 9000
@@ -106,7 +104,8 @@ ALLOWED_HOSTS = [ '*' ]
 # For more information check Django's documentation:
 #  https://docs.djangoproject.com/en/1.3/topics/email/?from=olddocs#e-mail-backends
 
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+# EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 EMAIL_HOST = 'localhost'
 EMAIL_HOST_PASSWORD = ''
@@ -123,7 +122,7 @@ SERVER_EMAIL = 'root@localhost'
 
 # If this file ever becomes compromised, it's important to regenerate your SECRET_KEY
 # Changing this value will result in all current sessions being invalidated
-SECRET_KEY = 'ZVfMdSPJKJMJJqI30YgkjlzCjAp0kzBpGrHNvdcrYBP7KetoqeQ5lA=='
+SECRET_KEY = open('/data/sentry/.secret').read().strip()
 
 # http://twitter.com/apps/new
 # It's important that input a callback URL, even if its useless. We have no idea why, consult Twitter.
@@ -149,3 +148,5 @@ TRELLO_API_SECRET = ''
 # https://confluence.atlassian.com/display/BITBUCKET/OAuth+Consumers
 BITBUCKET_CONSUMER_KEY = ''
 BITBUCKET_CONSUMER_SECRET = ''
+
+execfile(os.path.join(CONF_ROOT, 'local_settings.py'), globals(), locals())

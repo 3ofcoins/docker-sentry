@@ -1,3 +1,5 @@
+# -*- conf -*-
+
 FROM ubuntu:12.04
 MAINTAINER Maciej Pasternacki <maciej@3ofcoins.net>
 
@@ -7,6 +9,7 @@ RUN apt-get install --yes python-software-properties lsb-release
 RUN add-apt-repository "deb http://archive.ubuntu.com/ubuntu `lsb_release -sc` main universe multiverse"
 RUN apt-get update --yes
 RUN dpkg-divert --local --rename --add /sbin/initctl && ln -s /bin/true /sbin/initctl
+RUN apt-get install --yes net-tools curl python
 
 # Prerequisites
 RUN apt-get install --yes \
@@ -24,10 +27,10 @@ RUN /opt/sentry/bin/pip install 'sentry[postgresql]' psycopg2
 RUN useradd --comment sentry --user-group --no-create-home sentry
 
 # Add this services directory
-ADD service /service.tmpl
+ADD service /service
 ADD start /start
 
 EXPOSE 2222
 EXPOSE 9000
-VOLUME /service
+VOLUME /data
 CMD "/start"

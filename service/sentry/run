@@ -1,29 +1,42 @@
 #!/bin/sh
 set -e
+exec 2>&1
+
+. ../functions.sh
+
+mkdir -p /data/sentry
+
+[ -f /data/sentry/.secret ] || openssl rand -base64 64 | tr -d \\n > /data/sentry/.secret
+chown root:sentry /data/sentry/.secret
+chmod 0640 /data/sentry/.secret
+
+etcd_get local_settings > local_settings.py
 
 until chpst -u postgres psql -c 'SELECT 1' > /dev/null 2>&1 ; do
     sleep 1
 done
 
 sentry () {
-    chpst -u sentry /opt/sentry/bin/sentry --config=sentry.conf.py "${@}"
+    chpst -u sentry /opt/sentry/bin/sentry --config=settings.py "${@}"
 }
 
 chpst -u postgres psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='sentry'" | grep -q 1 || \
     chpst -u postgres createuser --no-superuser --no-createdb --no-createrole sentry
 
-chpst -u postgres psql -tAl | grep '^sentry|' || \
+chpst -u postgres psql -tAl | grep -q '^sentry|' || \
     chpst -u postgres createdb -T template0 -E UTF8 -O sentry sentry
 
 sentry upgrade --noinput
 
-if [ ! -f PASSWORD ] ; then
-    openssl rand -hex 16 > PASSWORD
-    sentry shell <<EOF > /dev/null
+if [ ! -f /data/sentry/.password ] ; then
+    etcd_get initial_password > /data/sentry/.password
+    [ -s .password ] || echo -n dupa.8 > /data/sentry/.password
+    sentry shell <<EOF > /dev/null 2>&1
 from django.contrib.auth.models import User
-User.objects.create_superuser('root', 'root@example.com', '`cat PASSWORD`')
+User.objects.create_superuser('root', 'root@example.com', '`cat /data/sentry/.password`')
 EOF
     sentry repair --owner=root
+    echo -n > /data/sentry/.password
 fi
 
-exec chpst -u sentry /opt/sentry/bin/sentry --config=sentry.conf.py start
+exec chpst -u sentry /opt/sentry/bin/sentry --config=settings.py start

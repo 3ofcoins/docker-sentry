@@ -1,10 +1,14 @@
 #!/bin/sh
-set -e -x
+set -e
 
-test -d /service || mkdir /service
-
-for service in /service.tmpl/* ; do
-    test -d /service/`basename $service` || cp -a $service /service
-done
+if [ -z "$ETCD_URL" ] ; then
+    ETCD_HOST=${ETCD_HOST:-`ip route get 8.8.8.8 | perl -n -e '/^8\.8\.8\.8\s.*via (\S+)/ && print "$1\n";'`}
+    ETCD_PORT=${ETCD_PORT:-4001}
+    ETCD_URL="http://$ETCD_HOST:$ETCD_PORT"
+fi
+ETCD_PREFIX=${ETCD_PREFIX:-sentry}
+ETCD_PREFIX="`echo "$ETCD_PREFIX" | sed 's,^/*,,'`"
+ETCD_URL="`echo "$ETCD_URL" | sed 's,/*$,,'`"
+export ETCD_URL ETCD_PREFIX
 
 exec /usr/bin/runsvdir /service
