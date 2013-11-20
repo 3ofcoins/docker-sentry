@@ -13,7 +13,7 @@ RUN apt-get install --yes net-tools curl python
 
 # Prerequisites
 RUN apt-get install --yes \
-    python2.7 python2.7-dev postgresql-9.1 libpq-dev wget ca-certificates runit openssh-server
+    python2.7 python2.7-dev postgresql-client-9.1 libpq-dev wget ca-certificates runit openssh-server
 
 # Virtualenv
 RUN cd /tmp && \
@@ -23,14 +23,12 @@ RUN tar -C /tmp -xzf /tmp/virtualenv-1.10.1.tar.gz
 RUN python2.7 /tmp/virtualenv-1.10.1/virtualenv.py /opt/sentry
 
 # Installation of Sentry
-RUN /opt/sentry/bin/pip install 'sentry[postgresql]' psycopg2
+RUN /opt/sentry/bin/pip install 'sentry[postgresql]' psycopg2 python-memcached redis hiredis nydus
 RUN useradd --comment sentry --user-group --no-create-home sentry
 
 # Add this services directory
-ADD service /service
-ADD start /start
+ADD settings.py /etc/sentry/settings.py
+ADD sentry /sentry
 
-EXPOSE 2222
 EXPOSE 9000
-VOLUME /data
-CMD "/start"
+ENTRYPOINT [ "/sentry" ]

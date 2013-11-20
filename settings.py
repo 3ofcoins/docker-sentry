@@ -2,25 +2,22 @@
 # you can inherit and tweak settings to your hearts content.
 from sentry.conf.server import *
 
-import os, os.path
+import os, os.path, urlparse
+
+_memcache_url = urlparse.urlparse(os.environ['MEMCACHE_PORT']) if 'MEMCACHE_PORT' in os.environ else None
+_redis_url =    urlparse.urlparse(os.environ['REDIS_PORT'])    if 'REDIS_PORT'    in os.environ else None
 
 CONF_ROOT = os.path.dirname(__file__)
 
 DATABASES = {
     'default': {
-        # You can swap out the engine for MySQL easily by changing this value
-        # to ``django.db.backends.mysql`` or to PostgreSQL with
-        # ``django.db.backends.postgresql_psycopg2``
-
-        # If you change this, you'll also need to install the appropriate python
-        # package: psycopg2 (Postgres) or mysql-python
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
 
-        'NAME': 'sentry',
-        'USER': 'sentry',
-        'PASSWORD': '',
-        'HOST': '',
-        'PORT': '',
+        'NAME': os.environ['PGDATABASE'],
+        'USER': os.environ['PGUSER'],
+        'PASSWORD': os.environ['PGPASSWORD'],
+        'HOST': os.environ['PGHOST'],
+        'PORT': os.environ['PGPORT'],
 
         # If you're using Postgres, we recommend turning on autocommit
         'OPTIONS': { 'autocommit': True, }
@@ -38,12 +35,14 @@ DATABASES = {
 # You'll need to install the required dependencies for Memcached:
 #   pip install python-memcached
 #
-# CACHES = {
-#     'default': {
-#         'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
-#         'LOCATION': ['127.0.0.1:11211'],
-#     }
-# }
+
+if _memcache_url:
+    CACHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
+            'LOCATION': [ _memcache_url.netloc ],
+        }
+    }
 
 ###########
 ## Queue ##
@@ -54,8 +53,9 @@ DATABASES = {
 # on a Python framework called Celery to manage queues.
 
 # You can enable queueing of jobs by turning off the always eager setting:
-# CELERY_ALWAYS_EAGER = False
-# BROKER_URL = 'redis://localhost:6379'
+if _redis_url and 'CELERY_ALWAYS_EAGER' not in os.environ:
+    CELERY_ALWAYS_EAGER = False
+    BROKER_URL = 'redis://{0}'.format(_redis_url.netloc)
 
 ####################
 ## Update Buffers ##
@@ -69,15 +69,17 @@ DATABASES = {
 # You'll need to install the required dependencies for Redis buffers:
 #   pip install redis hiredis nydus
 #
-# SENTRY_BUFFER = 'sentry.buffer.redis.RedisBuffer'
-# SENTRY_REDIS_OPTIONS = {
-#     'hosts': {
-#         0: {
-#             'host': '127.0.0.1',
-#             'port': 6379,
-#         }
-#     }
-# }
+
+if _redis_url:
+    SENTRY_BUFFER = 'sentry.buffer.redis.RedisBuffer'
+    SENTRY_REDIS_OPTIONS = {
+        'hosts': {
+            0: {
+                'host': _redis_url.host,
+                'port': _redis_url.port,
+            }
+        }
+    }
 
 ################
 ## Web Server ##
@@ -91,9 +93,16 @@ SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 SENTRY_WEB_HOST = '0.0.0.0'
 SENTRY_WEB_PORT = 9000
 SENTRY_WEB_OPTIONS = {
-    'workers': 3,  # the number of gunicorn workers
+    'workers': int(os.environ.get('SENTRY_WEB_WORKERS', 3)),  # the number of gunicorn workers
     'secure_scheme_headers': {'X-FORWARDED-PROTO': 'https'},
 }
+
+if 'SENTRY_WEB_REMOTE_USER_AUTH' in os.environ:
+    from django.contrib.auth.middleware import RemoteUserMiddleware
+    RemoteUserMiddleware.header = os.environ['SENTRY_WEB_REMOTE_USER_AUTH']
+    
+    MIDDLEWARE_CLASSES += ( 'django.contrib.auth.middleware.RemoteUserMiddleware', )
+    AUTHENTICATION_BACKENDS = ( 'django.contrib.auth.backends.RemoteUserBackend', )
 
 ALLOWED_HOSTS = [ '*' ]
 
@@ -122,7 +131,7 @@ SERVER_EMAIL = 'root@localhost'
 
 # If this file ever becomes compromised, it's important to regenerate your SECRET_KEY
 # Changing this value will result in all current sessions being invalidated
-SECRET_KEY = open('/data/sentry/.secret').read().strip()
+SECRET_KEY = open('/etc/sentry/secret').read().strip()
 
 # http://twitter.com/apps/new
 # It's important that input a callback URL, even if its useless. We have no idea why, consult Twitter.
@@ -148,5 +157,3 @@ TRELLO_API_SECRET = ''
 # https://confluence.atlassian.com/display/BITBUCKET/OAuth+Consumers
 BITBUCKET_CONSUMER_KEY = ''
 BITBUCKET_CONSUMER_SECRET = ''
-
-execfile(os.path.join(CONF_ROOT, 'local_settings.py'), globals(), locals())
