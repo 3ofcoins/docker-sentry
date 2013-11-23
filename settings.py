@@ -6,6 +6,7 @@ import os, os.path, urlparse
 
 _memcache_url = urlparse.urlparse(os.environ['MEMCACHE_PORT']) if 'MEMCACHE_PORT' in os.environ else None
 _redis_url =    urlparse.urlparse(os.environ['REDIS_PORT'])    if 'REDIS_PORT'    in os.environ else None
+_redis_db = int(os.environ['REDIS_DATABASE']) if os.environ['REDIS_DATABASE'] else 0
 
 CONF_ROOT = os.path.dirname(__file__)
 
@@ -55,7 +56,7 @@ if _memcache_url:
 # You can enable queueing of jobs by turning off the always eager setting:
 if _redis_url and 'CELERY_ALWAYS_EAGER' not in os.environ:
     CELERY_ALWAYS_EAGER = False
-    BROKER_URL = 'redis://{0}'.format(_redis_url.netloc)
+    BROKER_URL = 'redis://{0}/{1}'.format(_redis_url.netloc, _redis_db)
 
 ####################
 ## Update Buffers ##
@@ -77,6 +78,7 @@ if _redis_url:
             0: {
                 'host': _redis_url.host,
                 'port': _redis_url.port,
+                'db': _redis_db,
             }
         }
     }

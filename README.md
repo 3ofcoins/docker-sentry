@@ -19,6 +19,7 @@ Environment variables
    (e.g. `HTTP_REMOTE_USER`).
  - `CELERY_ALWAYS_EAGER` - if set, then Celery won't be used even if
    Redis connection is configured
+ - `REDIS_DATABASE` (default: 0) - Redis database number to use
 
 Linked Containers
 -----------------
