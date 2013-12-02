@@ -23,6 +23,7 @@ RUN /opt/sentry/bin/pip install 'sentry[postgresql]' psycopg2 python-memcached r
 RUN useradd --comment sentry --user-group --no-create-home sentry
 
 # Add this services directory
+ADD env_remote_user_middleware.py /opt/sentry/local/lib/python2.7/site-packages/
 ADD settings.py /etc/sentry/settings.py
 ADD sentry /sentry
 
@@ -32,3 +33,4 @@ RUN rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
 
 EXPOSE 9000
 ENTRYPOINT [ "/sentry" ]
+CMD ["start", "--noupgrade"]
