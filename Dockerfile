@@ -1,36 +1,34 @@
-# -*- conf -*-
-
-FROM ubuntu:12.04
+# -*- conf -*- 
+FROM ubuntu:14.04
+#TAG 7.4.3
 MAINTAINER Maciej Pasternacki <maciej@3ofcoins.net>
 
-# Basic system preparation
-RUN apt-get update --yes && apt-get upgrade --yes
-RUN apt-get install --yes python-software-properties lsb-release
-RUN add-apt-repository "deb http://archive.ubuntu.com/ubuntu `lsb_release -sc` main universe multiverse"
-RUN apt-get update --yes
-RUN dpkg-divert --local --rename --add /sbin/initctl && ln -s /bin/true /sbin/initctl
-RUN apt-get install --yes net-tools curl python
-
 # Prerequisites
-RUN apt-get install --yes \
-    python2.7 python2.7-dev postgresql-9.1 libpq-dev wget ca-certificates runit openssh-server
-
-# Virtualenv
-RUN cd /tmp && \
-    wget https://pypi.python.org/packages/source/v/virtualenv/virtualenv-1.10.1.tar.gz && \
-    echo '3a04aa2b32c76c83725ed4d9918e362e  virtualenv-1.10.1.tar.gz' | md5sum -c -
-RUN tar -C /tmp -xzf /tmp/virtualenv-1.10.1.tar.gz
-RUN python2.7 /tmp/virtualenv-1.10.1/virtualenv.py /opt/sentry
+RUN set -e -x ; \
+    apt-get update --yes ; \
+    apt-get install --yes python2.7 python2.7-dev python-virtualenv postgresql-client \
+                          libpq-dev libxslt1-dev libxml2-dev libz-dev libffi-dev libssl-dev \
+                          ca-certificates runit ; \
+    useradd --system --comment sentry --user-group --create-home sentry ; \
+    install -d /var/opt/sentry ; \
+    install -d -o sentry -g sentry -m 0750 /var/opt/sentry/files
 
 # Installation of Sentry
-RUN /opt/sentry/bin/pip install 'sentry[postgresql]' psycopg2
-RUN useradd --comment sentry --user-group --no-create-home sentry
+RUN set -e -x ; \
+    /usr/bin/virtualenv /opt/sentry ; \
+    /opt/sentry/bin/pip install 'sentry[postgres]==7.4.3' ; \
+    /opt/sentry/bin/pip freeze | tee /opt/sentry/requirements-freeze.txt
 
 # Add this services directory
-ADD service /service
-ADD start /start
+ADD env_remote_user_middleware.py /opt/sentry/local/lib/python2.7/site-packages/
+ADD settings.py /etc/sentry/settings.py
+ADD sentry /sentry
 
-EXPOSE 2222
+# Cleanup
+RUN dpkg -l | awk '$2 ~ /-dev$/ { print $2 }' | xargs apt-get purge --yes cpp gcc binutils manpages
+RUN rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/* /tmp/*
+
+VOLUME /var/opt/sentry
 EXPOSE 9000
-VOLUME /data
-CMD "/start"
+ENTRYPOINT [ "/sentry" ]
+CMD [ "start", "--noupgrade" ]
