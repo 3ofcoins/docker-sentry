@@ -9,8 +9,7 @@ RUN set -e -x ; \
                           libpq-dev libxslt1-dev libxml2-dev libz-dev libffi-dev libssl-dev \
                           ca-certificates runit ; \
     useradd --system --comment sentry --user-group --create-home sentry ; \
-    install -d /var/opt/sentry ; \
-    install -d -o sentry -g sentry -m 0750 /var/opt/sentry/files ; \
+    install -d -o sentry -g sentry -m 0750 /var/opt/sentry /var/opt/sentry/files ; \
     /usr/bin/virtualenv /opt/sentry ; \
     /opt/sentry/bin/pip install 'sentry[postgres]==7.4.3' ; \
     /opt/sentry/bin/pip freeze | tee /opt/sentry/requirements-freeze.txt ; \
